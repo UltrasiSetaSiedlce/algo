@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::collections::HashMap;
 
 use itertools::Itertools;
 
@@ -18,51 +18,79 @@ impl PalettSegment {
 
 #[derive(Clone, Copy, Debug)]
 struct Box {
+    id: usize,
     width: usize,
     height: usize,
 }
 
+#[derive(Debug, Clone)]
+struct PackingPlan {
+    plan: HashMap<usize, (usize, usize)>,
+    wasted: usize,
+}
+
+impl PackingPlan {
+    fn initial() -> PackingPlan {
+        PackingPlan {
+            plan: HashMap::new(),
+            wasted: usize::MAX,
+        }
+    }
+}
+
 impl Box {
-    fn new(width: usize, height: usize) -> Box {
-        Box { width, height }
+    fn new(id: usize, width: usize, height: usize) -> Box {
+        Box { id, width, height }
     }
 }
 
 fn main() {
+    let mut ids = 1..;
     let palett = PalettSegment::new_palett(15, 15);
     let boxes = vec![
-        Box::new(6, 6),
-        Box::new(2, 3),
-        Box::new(4, 5),
-        Box::new(1, 1),
-        Box::new(2, 3),
-        Box::new(6, 6),
-        Box::new(2, 3),
-        Box::new(4, 5),
-        Box::new(1, 1),
-        Box::new(2, 3),
-        Box::new(2, 3),
-        Box::new(4, 5),
-        Box::new(4, 5),
-        Box::new(2, 3),
+        Box::new(ids.next().unwrap(), 6, 6),
+        Box::new(ids.next().unwrap(), 2, 3),
+        Box::new(ids.next().unwrap(), 4, 5),
+        Box::new(ids.next().unwrap(), 1, 1),
+        Box::new(ids.next().unwrap(), 2, 3),
+        Box::new(ids.next().unwrap(), 6, 6),
+        Box::new(ids.next().unwrap(), 2, 3),
+        Box::new(ids.next().unwrap(), 4, 5),
+        Box::new(ids.next().unwrap(), 1, 1),
+        Box::new(ids.next().unwrap(), 2, 3),
+        Box::new(ids.next().unwrap(), 2, 3),
     ];
-    println!("{}", fit(palett, boxes, 0, usize::MAX));
+    println!("{:?}", fit(palett, boxes));
 }
 
-fn fit(
+fn fit(palett: Vec<Vec<PalettSegment>>, boxes: Vec<Box>) -> Option<PackingPlan> {
+    fit_impl(palett, boxes, 0, 0, usize::MAX)
+}
+
+fn fit_impl(
     palett: Vec<Vec<PalettSegment>>,
     boxes: Vec<Box>,
     wasted: usize,
-    mut least_wasted_so_far: usize,
-) -> usize {
-    if boxes.len() == 0 {
+    z: usize,
+    mut least_wasted: usize,
+) -> Option<PackingPlan> {
+    if wasted >= least_wasted {
+        return None;
+    } else if boxes.len() == 0 {
         println!("found! {}", wasted);
-        return wasted;
-    } else if wasted >= least_wasted_so_far {
-        return least_wasted_so_far;
+        return Some(PackingPlan {
+            wasted,
+            plan: HashMap::new(),
+        });
     }
+    let mut best_plan = PackingPlan::initial();
     for (i, boks) in boxes.iter().enumerate() {
+        let mut x = match palett.first().and_then(|row| row.first()) {
+            Some(seg) => seg.idx,
+            None => continue,
+        };
         let mut palett_copy = palett.clone();
+        let palett_len_pre = palett_copy.len();
         let mut wasted_here = wasted;
         let mut result = fit_box(&palett_copy, boks);
         while let None = result {
@@ -72,14 +100,19 @@ fn fit(
             };
             seg.len -= 1;
             seg.idx += 1;
+            x = seg.idx;
             wasted_here += 1;
-            if wasted_here >= least_wasted_so_far {
+            if wasted_here >= least_wasted {
                 break;
             }
             if seg.len == 0 {
                 palett_copy[0].remove(0);
                 if palett_copy[0].is_empty() {
                     palett_copy.remove(0);
+                    x = match palett_copy.first().and_then(|row| row.first()) {
+                        Some(seg) => seg.idx,
+                        None => break,
+                    };
                 }
             }
             result = fit_box(&palett_copy, boks);
@@ -87,13 +120,26 @@ fn fit(
         if let None = result {
             continue;
         }
+        let new_palett = result.unwrap();
+        let new_z = z + (palett_len_pre - new_palett.len());
         let mut new_boxes = Vec::with_capacity(boxes.len() - 1);
         new_boxes.extend_from_slice(&boxes[0..i]);
         new_boxes.extend_from_slice(&boxes[i + 1..]);
-        wasted_here = fit(result.unwrap(), new_boxes, wasted_here, least_wasted_so_far);
-        least_wasted_so_far = min(least_wasted_so_far, wasted_here)
+        let mut new_plan = match fit_impl(new_palett, new_boxes, wasted_here, new_z, least_wasted) {
+            Some(wasted) => wasted,
+            None => continue,
+        };
+        if new_plan.wasted < best_plan.wasted {
+            new_plan.plan.insert(boks.id, (x, new_z));
+            least_wasted = new_plan.wasted;
+            best_plan = new_plan;
+        }
     }
-    least_wasted_so_far
+    if best_plan.plan.is_empty() {
+        None
+    } else {
+        Some(best_plan)
+    }
 }
 
 fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<Vec<Vec<PalettSegment>>> {
@@ -134,6 +180,7 @@ fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<Vec<Vec<Palet
             result.push(new_row)
         }
     }
+    // println!("POST: {:?}", result);
     Some(result)
 }
 
@@ -143,17 +190,21 @@ mod tests {
 
     #[test]
     fn test() {
-        let palett = PalettSegment::new_palett(10, 10);
+        let mut ids = 1..;
+        let palett = PalettSegment::new_palett(15, 15);
         let boxes = vec![
-            Box::new(2, 3),
-            Box::new(4, 5),
-            Box::new(1, 1),
-            Box::new(2, 3),
-            Box::new(2, 3),
-            Box::new(4, 5),
-            Box::new(1, 1),
-            Box::new(2, 3),
+            Box::new(ids.next().unwrap(), 6, 6),
+            Box::new(ids.next().unwrap(), 2, 3),
+            Box::new(ids.next().unwrap(), 4, 5),
+            Box::new(ids.next().unwrap(), 1, 1),
+            Box::new(ids.next().unwrap(), 2, 3),
+            Box::new(ids.next().unwrap(), 6, 6),
+            Box::new(ids.next().unwrap(), 2, 3),
+            Box::new(ids.next().unwrap(), 4, 5),
+            Box::new(ids.next().unwrap(), 1, 1),
+            Box::new(ids.next().unwrap(), 2, 3),
+            Box::new(ids.next().unwrap(), 2, 3),
         ];
-        fit(palett, boxes, 0, usize::MAX);
+        fit(palett, boxes);
     }
 }

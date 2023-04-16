@@ -55,12 +55,16 @@ pub fn fit(
         Instant::now() + timeout,
     )
     .unwrap();
+    println!("SEMI: {:?}", semi);
     let layers_n = semi.plan.values().map(|(_, y, _)| y).max().unwrap() + 1;
     if layers_n > palettes_n * dy {
         panic!("");
     };
     let mut palettes = repeat(FilledPalett::new()).take(palettes_n).collect_vec();
-    let layers = semi.plan.iter().group_by(|(_, (_, y, _))| y);
+    let layers = semi.plan
+        .iter()
+        .sorted_by(|(_, (_, y1, _)), (_, (_, y2, _))| y1.cmp(y2))
+        .group_by(|(_, (_, y, _))| y);
     layers
         .into_iter()
         .sorted_by(|(y1, _), (y2, _)| y1.cmp(y2))
@@ -70,8 +74,8 @@ pub fn fit(
             for (i, (x, _, z)) in group {
                 let pos = (*x, palette.dy, *z);
                 palette.boxes.insert(*i, pos);
-                palette.dy += 1;
             }
+            palette.dy += 1;
         });
     PackingPlan { palettes }
 }
@@ -227,7 +231,7 @@ fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<Vec<Vec<Palet
 mod tests {
     use std::time::Duration;
 
-    use crate::{schema::Box, packing::fit};
+    use crate::{packing::fit, schema::Box};
 
     fn make_box(id: usize, dx: usize, dz: usize) -> Box {
         Box {

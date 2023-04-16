@@ -2,15 +2,87 @@
   "boxes": [
     {
       "id": 1,
+      "dx": 6,
+      "dz": 6,
+      "weight": 5
+    },
+    {
+      "id": 2,
+      "dx": 2,
+      "dz": 3,
+      "weight": 5
+    },
+    {
+      "id": 3,
+      "dx": 4,
+      "dz": 5,
+      "weight": 5
+    },
+    {
+      "id": 4,
       "dx": 1,
       "dz": 1,
-      "weight": 100
+      "weight": 5
+    },
+    {
+      "id": 5,
+      "dx": 2,
+      "dz": 3,
+      "weight": 5
+    },
+    {
+      "id": 6,
+      "dx": 6,
+      "dz": 6,
+      "weight": 5
+    },
+    {
+      "id": 7,
+      "dx": 2,
+      "dz": 3,
+      "weight": 5
+    },
+    {
+      "id": 8,
+      "dx": 4,
+      "dz": 5,
+      "weight": 5
+    },
+    {
+      "id": 9,
+      "dx": 1,
+      "dz": 1,
+      "weight": 5
+    },
+    {
+      "id": 10,
+      "dx": 2,
+      "dz": 3,
+      "weight": 5
+    },
+    {
+      "id": 11,
+      "dx": 2,
+      "dz": 3,
+      "weight": 5
+    },
+    {
+      "id": 12,
+      "dx": 7,
+      "dz": 6,
+      "weight": 5
+    },
+    {
+      "id": 13,
+      "dx": 8,
+      "dz": 6,
+      "weight": 5
     }
   ],
   "palett_size": [
     10,
-    10,
+    2,
     10
   ],
-  "palettes_n": 1
+  "palettes_n": 2
 }

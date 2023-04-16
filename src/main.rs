@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use itertools::Itertools;
 
@@ -25,7 +28,7 @@ struct Box {
 
 #[derive(Debug, Clone)]
 struct PackingPlan {
-    plan: HashMap<usize, (usize, usize)>,
+    plan: HashMap<usize, (usize, usize, usize)>,
     wasted: usize,
 }
 
@@ -46,7 +49,6 @@ impl Box {
 
 fn main() {
     let mut ids = 1..;
-    let palett = PalettSegment::new_palett(15, 15);
     let boxes = vec![
         Box::new(ids.next().unwrap(), 6, 6),
         Box::new(ids.next().unwrap(), 2, 3),
@@ -59,22 +61,40 @@ fn main() {
         Box::new(ids.next().unwrap(), 1, 1),
         Box::new(ids.next().unwrap(), 2, 3),
         Box::new(ids.next().unwrap(), 2, 3),
+        Box::new(ids.next().unwrap(), 7, 15),
+        Box::new(ids.next().unwrap(), 8, 15),
     ];
-    println!("{:?}", fit(palett, boxes));
+    println!("{:?}", fit((15, 15), boxes, Duration::from_secs(5)));
 }
 
-fn fit(palett: Vec<Vec<PalettSegment>>, boxes: Vec<Box>) -> Option<PackingPlan> {
-    fit_impl(palett, boxes, 0, 0, usize::MAX)
+fn fit(
+    palett_size @ (width, height): (usize, usize),
+    boxes: Vec<Box>,
+    timeout: Duration,
+) -> Option<PackingPlan> {
+    fit_impl(
+        palett_size,
+        PalettSegment::new_palett(width, height),
+        boxes,
+        0,
+        0,
+        0,
+        usize::MAX,
+        Instant::now() + timeout,
+    )
 }
 
 fn fit_impl(
+    palett_size @ (width, height): (usize, usize),
     palett: Vec<Vec<PalettSegment>>,
     boxes: Vec<Box>,
     wasted: usize,
     z: usize,
+    y: usize,
     mut least_wasted: usize,
+    stop_time: Instant,
 ) -> Option<PackingPlan> {
-    if wasted >= least_wasted {
+    if wasted >= least_wasted || Instant::now() > stop_time {
         return None;
     } else if boxes.len() == 0 {
         println!("found! {}", wasted);
@@ -85,24 +105,37 @@ fn fit_impl(
     }
     let mut best_plan = PackingPlan::initial();
     for (i, boks) in boxes.iter().enumerate() {
-        let mut x = match palett.first().and_then(|row| row.first()) {
-            Some(seg) => seg.idx,
-            None => continue,
-        };
+        let mut new_y = y;
+        let mut new_z = z;
         let mut palett_copy = palett.clone();
-        let palett_len_pre = palett_copy.len();
+        let mut x = match palett_copy.first().and_then(|row| row.first()) {
+            Some(seg) => seg.idx,
+            None => {
+                palett_copy = PalettSegment::new_palett(width, height);
+                new_y += 1;
+                new_z = 0;
+                0
+            }
+        };
+        let mut palett_len_pre = palett_copy.len();
         let mut wasted_here = wasted;
         let mut result = fit_box(&palett_copy, boks);
         while let None = result {
             let mut seg = match palett_copy.first_mut().and_then(|row| row.first_mut()) {
                 Some(seg) => seg,
-                None => break,
+                None => {
+                    palett_copy = PalettSegment::new_palett(width, height);
+                    new_y += 1;
+                    new_z = 0;
+                    palett_len_pre = palett_copy.len();
+                    &mut palett_copy[0][0]
+                }
             };
             seg.len -= 1;
             seg.idx += 1;
             x = seg.idx;
             wasted_here += 1;
-            if wasted_here >= least_wasted {
+            if wasted_here >= least_wasted || Instant::now() > stop_time {
                 break;
             }
             if seg.len == 0 {
@@ -111,7 +144,13 @@ fn fit_impl(
                     palett_copy.remove(0);
                     x = match palett_copy.first().and_then(|row| row.first()) {
                         Some(seg) => seg.idx,
-                        None => break,
+                        None => {
+                            palett_copy = PalettSegment::new_palett(width, height);
+                            new_y += 1;
+                            new_z = 0;
+                            palett_len_pre = palett_copy.len();
+                            0
+                        }
                     };
                 }
             }
@@ -121,16 +160,25 @@ fn fit_impl(
             continue;
         }
         let new_palett = result.unwrap();
-        let new_z = z + (palett_len_pre - new_palett.len());
+        let new_z = new_z + (palett_len_pre - new_palett.len());
         let mut new_boxes = Vec::with_capacity(boxes.len() - 1);
         new_boxes.extend_from_slice(&boxes[0..i]);
         new_boxes.extend_from_slice(&boxes[i + 1..]);
-        let mut new_plan = match fit_impl(new_palett, new_boxes, wasted_here, new_z, least_wasted) {
+        let mut new_plan = match fit_impl(
+            palett_size,
+            new_palett,
+            new_boxes,
+            wasted_here,
+            new_z,
+            new_y,
+            least_wasted,
+            stop_time,
+        ) {
             Some(wasted) => wasted,
             None => continue,
         };
         if new_plan.wasted < best_plan.wasted {
-            new_plan.plan.insert(boks.id, (x, new_z));
+            new_plan.plan.insert(boks.id, (x, new_y, new_z));
             least_wasted = new_plan.wasted;
             best_plan = new_plan;
         }
@@ -190,21 +238,6 @@ mod tests {
 
     #[test]
     fn test() {
-        let mut ids = 1..;
-        let palett = PalettSegment::new_palett(15, 15);
-        let boxes = vec![
-            Box::new(ids.next().unwrap(), 6, 6),
-            Box::new(ids.next().unwrap(), 2, 3),
-            Box::new(ids.next().unwrap(), 4, 5),
-            Box::new(ids.next().unwrap(), 1, 1),
-            Box::new(ids.next().unwrap(), 2, 3),
-            Box::new(ids.next().unwrap(), 6, 6),
-            Box::new(ids.next().unwrap(), 2, 3),
-            Box::new(ids.next().unwrap(), 4, 5),
-            Box::new(ids.next().unwrap(), 1, 1),
-            Box::new(ids.next().unwrap(), 2, 3),
-            Box::new(ids.next().unwrap(), 2, 3),
-        ];
-        fit(palett, boxes);
+        main()
     }
 }

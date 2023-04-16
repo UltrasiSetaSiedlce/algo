@@ -52,7 +52,6 @@ pub fn fit(
         0,
         0,
         usize::MAX,
-        Instant::now() + timeout,
     )
     .unwrap();
     println!("SEMI: {:?}", semi);
@@ -61,7 +60,8 @@ pub fn fit(
         panic!("");
     };
     let mut palettes = repeat(FilledPalett::new()).take(palettes_n).collect_vec();
-    let layers = semi.plan
+    let layers = semi
+        .plan
         .iter()
         .sorted_by(|(_, (_, y1, _)), (_, (_, y2, _))| y1.cmp(y2))
         .group_by(|(_, (_, y, _))| y);
@@ -88,9 +88,8 @@ fn fit_impl(
     z: usize,
     y: usize,
     mut least_wasted: usize,
-    stop_time: Instant,
 ) -> Option<SemiPackingPlan> {
-    if wasted >= least_wasted || Instant::now() > stop_time {
+    if wasted >= least_wasted {
         return None;
     } else if boxes.len() == 0 {
         println!("found! {}", wasted);
@@ -131,7 +130,7 @@ fn fit_impl(
             seg.idx += 1;
             x = seg.idx;
             wasted_here += 1;
-            if wasted_here >= least_wasted || Instant::now() > stop_time {
+            if wasted_here >= least_wasted {
                 break;
             }
             if seg.len == 0 {
@@ -168,7 +167,6 @@ fn fit_impl(
             new_z,
             new_y,
             least_wasted,
-            stop_time,
         ) {
             Some(wasted) => wasted,
             None => continue,

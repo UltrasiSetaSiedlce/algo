@@ -52,6 +52,7 @@ pub fn fit(
         0,
         0,
         usize::MAX,
+        Instant::now() + Duration::from_secs(10),
     )
     .unwrap();
     println!("SEMI: {:?}", semi);
@@ -88,8 +89,9 @@ fn fit_impl(
     z: usize,
     y: usize,
     mut least_wasted: usize,
+    stop_time: Instant,
 ) -> Option<SemiPackingPlan> {
-    if wasted >= least_wasted {
+    if wasted >= least_wasted || Instant::now() > stop_time {
         return None;
     } else if boxes.len() == 0 {
         println!("found! {}", wasted);
@@ -128,7 +130,7 @@ fn fit_impl(
             seg.idx += 1;
             x = seg.idx;
             wasted_here += 1;
-            if wasted_here >= least_wasted {
+            if wasted_here >= least_wasted || Instant::now() > stop_time{
                 break;
             }
             if seg.len == 0 {
@@ -164,6 +166,7 @@ fn fit_impl(
             new_z + skipped,
             new_y,
             least_wasted,
+            stop_time,
         ) {
             Some(wasted) => wasted,
             None => continue,

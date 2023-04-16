@@ -57,7 +57,7 @@ pub fn fit(
     println!("SEMI: {:?}", semi);
     let layers_n = semi.plan.values().map(|(_, y, _)| y).max().unwrap() + 1;
     if layers_n > palettes_n * dy {
-        panic!("");
+        panic!("pizda");
     };
     let mut palettes = repeat(FilledPalett::new()).take(palettes_n).collect_vec();
     let layers = semi
@@ -112,9 +112,8 @@ fn fit_impl(
                 0
             }
         };
-        let mut palett_len_pre = palett_copy.len();
         let mut wasted_here = wasted;
-        let mut result = fit_box(&palett_copy, boks);
+        let mut result = fit_box(&palett_copy, &boks);
         while let None = result {
             let mut seg = match palett_copy.first_mut().and_then(|row| row.first_mut()) {
                 Some(seg) => seg,
@@ -122,7 +121,6 @@ fn fit_impl(
                     palett_copy = PalettSegment::new_palett(width, height);
                     new_y += 1;
                     new_z = 0;
-                    palett_len_pre = palett_copy.len();
                     &mut palett_copy[0][0]
                 }
             };
@@ -137,25 +135,24 @@ fn fit_impl(
                 palett_copy[0].remove(0);
                 if palett_copy[0].is_empty() {
                     palett_copy.remove(0);
+                    new_z += 1;
                     x = match palett_copy.first().and_then(|row| row.first()) {
                         Some(seg) => seg.idx,
                         None => {
                             palett_copy = PalettSegment::new_palett(width, height);
                             new_y += 1;
                             new_z = 0;
-                            palett_len_pre = palett_copy.len();
                             0
                         }
                     };
                 }
             }
-            result = fit_box(&palett_copy, boks);
+            result = fit_box(&palett_copy, &boks);
         }
         if let None = result {
             continue;
         }
-        let new_palett = result.unwrap();
-        let new_z = new_z + (palett_len_pre - new_palett.len());
+        let (new_palett, skipped) = result.unwrap();
         let mut new_boxes = Vec::with_capacity(boxes.len() - 1);
         new_boxes.extend_from_slice(&boxes[0..i]);
         new_boxes.extend_from_slice(&boxes[i + 1..]);
@@ -164,7 +161,7 @@ fn fit_impl(
             new_palett,
             new_boxes,
             wasted_here,
-            new_z,
+            new_z + skipped,
             new_y,
             least_wasted,
         ) {
@@ -184,12 +181,14 @@ fn fit_impl(
     }
 }
 
-fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<Vec<Vec<PalettSegment>>> {
+fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<(Vec<Vec<PalettSegment>>, usize)> {
     if palett.len() < boks.dz {
         return None;
     }
+    // println!("PRE: {:?}", palett);
     let mut result: Vec<Vec<PalettSegment>> = Vec::new();
     let first_seg_idx = palett[0][0].idx;
+    let mut skipped: usize = 0;
     for (row_i, row) in palett.iter().enumerate() {
         let mut new_row: Vec<PalettSegment> = Vec::new();
         for seg in row {
@@ -215,14 +214,17 @@ fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<Vec<Vec<Palet
                     }
                 }
             } else {
-                new_row.push(*seg)
+                new_row.push(*seg);
             }
         }
         if !new_row.is_empty() {
             result.push(new_row)
+        } else {
+            skipped += 1;
         }
     }
-    Some(result)
+    // println!("POST: {:?}", result);
+    Some((result, skipped))
 }
 
 #[cfg(test)]

@@ -1,0 +1,16 @@
+{
+  "boxes": [
+    {
+      "id": 1,
+      "dx": 1,
+      "dz": 1,
+      "weight": 100
+    }
+  ],
+  "palett_size": [
+    10,
+    10,
+    10
+  ],
+  "palettes_n": 1
+}

@@ -222,3 +222,40 @@ fn fit_box(palett: &Vec<Vec<PalettSegment>>, boks: &Box) -> Option<Vec<Vec<Palet
     }
     Some(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use crate::{schema::Box, packing::fit};
+
+    fn make_box(id: usize, dx: usize, dz: usize) -> Box {
+        Box {
+            id,
+            dx,
+            dz,
+            weight: 5,
+        }
+    }
+
+    #[test]
+    fn test() {
+        let mut ids = 1..;
+        let boxes = vec![
+            make_box(ids.next().unwrap(), 6, 6),
+            make_box(ids.next().unwrap(), 2, 3),
+            make_box(ids.next().unwrap(), 4, 5),
+            make_box(ids.next().unwrap(), 1, 1),
+            make_box(ids.next().unwrap(), 2, 3),
+            make_box(ids.next().unwrap(), 6, 6),
+            make_box(ids.next().unwrap(), 2, 3),
+            make_box(ids.next().unwrap(), 4, 5),
+            make_box(ids.next().unwrap(), 1, 1),
+            make_box(ids.next().unwrap(), 2, 3),
+            make_box(ids.next().unwrap(), 2, 3),
+            make_box(ids.next().unwrap(), 7, 15),
+            make_box(ids.next().unwrap(), 8, 15),
+        ];
+        println!("{:?}", fit((15, 10, 15), 4, boxes, Duration::from_secs(5)));
+    }
+}

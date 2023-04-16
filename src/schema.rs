@@ -19,36 +19,25 @@ pub struct Box {
     pub weight: usize,
 }
 
-impl Box {
-    pub fn new(id: usize, width: usize, height: usize) -> Box {
-        Box {
-            id,
-            dx: width,
-            dz: height,
-            weight: 5,
-        }
-    }
-}
-
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct PackingPlan {
-    pub palettes: Vec<FilledPalett>
+    pub palettes: Vec<FilledPalett>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct FilledPalett {
     pub boxes: HashMap<usize, (usize, usize, usize)>,
     #[serde(skip_serializing)]
-    pub dy: usize
+    pub dy: usize,
 }
 
 impl FilledPalett {
     pub fn new() -> FilledPalett {
         FilledPalett {
             boxes: HashMap::new(),
-            dy: 0
+            dy: 0,
         }
     }
 }
